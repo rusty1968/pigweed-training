@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/pigweed-training/static/js/main.e928124d.js",
+    "main.js": "/pigweed-training/static/js/main.36f28404.js",
     "index.html": "/pigweed-training/index.html",
-    "main.e928124d.js.map": "/pigweed-training/static/js/main.e928124d.js.map"
+    "main.36f28404.js.map": "/pigweed-training/static/js/main.36f28404.js.map"
   },
   "entrypoints": [
-    "static/js/main.e928124d.js"
+    "static/js/main.36f28404.js"
   ]
 }
