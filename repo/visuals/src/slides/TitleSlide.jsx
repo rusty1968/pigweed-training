@@ -1,4 +1,34 @@
+const BAZEL = "#00FFB2";
+const PURPLE = "#A78BFA";
+const ORANGE = "#FF6B35";
+const BLUE = "#38BDF8";
+const DIM = "#1A2235";
+
 export default function TitleSlide() {
+  const tracks = [
+    {
+      color: PURPLE,
+      title: "KERNEL",
+      subtitle: "pw_kernel Internals",
+      items: ["Design Philosophy", "Kernel Objects & Interrupts", "Threads, Processes & Channels", "Wait Groups"],
+      count: 7,
+    },
+    {
+      color: BAZEL,
+      title: "BAZEL",
+      subtitle: "Build System Fundamentals",
+      items: ["Why Bazel for pw_kernel?", "Build Anatomy & Roadmap", "Core Properties & Flashcards", "Rust + Bazel & Bzlmod"],
+      count: 7,
+    },
+    {
+      color: ORANGE,
+      title: "DRIVERS",
+      subtitle: "Userspace Peripheral Services",
+      items: ["5-Crate Architecture", "Backend & Server Loop", "Build Graph & system.json5", "Testing & Exercises"],
+      count: 4,
+    },
+  ];
+
   return (
     <div style={{
       minHeight: "100vh",
@@ -18,41 +48,53 @@ export default function TitleSlide() {
 
       <div style={{
         fontSize: 72, fontWeight: 900, letterSpacing: 12,
-        background: "linear-gradient(135deg, #00FFB2, #38BDF8)",
+        background: `linear-gradient(135deg, ${PURPLE}, ${BAZEL}, ${ORANGE})`,
         WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         marginBottom: 8,
-      }}>BAZEL</div>
+      }}>OPENPROT</div>
 
-      <div style={{ fontSize: 16, letterSpacing: 4, color: "#4A5568", marginBottom: 60 }}>
-        BUILD SYSTEM FUNDAMENTALS
+      <div style={{ fontSize: 14, letterSpacing: 6, color: "#4A5568", marginBottom: 60 }}>
+        KERNEL · BAZEL · DRIVERS
       </div>
 
       <div style={{
-        width: 1, height: 60,
-        background: "linear-gradient(180deg, #00FFB2, transparent)",
+        width: 1, height: 40,
+        background: `linear-gradient(180deg, ${PURPLE}, transparent)`,
         marginBottom: 40,
       }} />
 
-      <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
-        {[
-          { n: "01", label: "Why Bazel for pw_kernel?" },
-          { n: "02", label: "pw_kernel Build Anatomy" },
-          { n: "03", label: "Learning Roadmap — Read → Modify → Extend" },
-          { n: "04", label: "Core Properties" },
-          { n: "05", label: "Deep Dive — Flashcards" },
-          { n: "06", label: "Rust + Bazel" },
-          { n: "07", label: "Embedded Bzlmod — MODULE.bazel + Cortex-M" },
-          { n: "08", label: "pw_kernel Channels — IPC Overview" },
-          { n: "09", label: "Channel Signals — State Machine" },
-          { n: "10", label: "Channels in Code — Config & Syscalls" },
-        ].map((item) => (
-          <div key={item.n} style={{
-            display: "flex", alignItems: "center", gap: 16,
-            border: "1px solid #1A2235", borderRadius: 4,
-            padding: "12px 20px", background: "#0D1320",
+      <div style={{ display: "flex", gap: 24, maxWidth: 900 }}>
+        {tracks.map((track) => (
+          <div key={track.title} style={{
+            flex: 1,
+            border: `1px solid ${track.color}20`,
+            borderRadius: 6,
+            padding: "20px 18px",
+            background: "#0D1320",
           }}>
-            <div style={{ fontSize: 10, color: "#00FFB2", letterSpacing: 2, minWidth: 24 }}>{item.n}</div>
-            <div style={{ fontSize: 11, letterSpacing: 3, color: "#64748B" }}>{item.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 900, letterSpacing: 4, color: track.color, marginBottom: 4 }}>
+              {track.title}
+            </div>
+            <div style={{ fontSize: 9, letterSpacing: 2, color: "#4A5568", marginBottom: 14 }}>
+              {track.subtitle}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              {track.items.map((item, i) => (
+                <div key={i} style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "6px 10px",
+                  borderLeft: `2px solid ${track.color}30`,
+                }}>
+                  <div style={{ fontSize: 9, color: track.color, letterSpacing: 2, minWidth: 20 }}>
+                    {String(i + 1).padStart(2, "0")}
+                  </div>
+                  <div style={{ fontSize: 10, letterSpacing: 2, color: "#64748B" }}>{item}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 9, letterSpacing: 2, color: "#334155" }}>
+              {track.count} SLIDES
+            </div>
           </div>
         ))}
       </div>

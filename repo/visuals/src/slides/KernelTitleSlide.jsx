@@ -35,11 +35,11 @@ export default function KernelTitleSlide() {
 
       <div style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 480 }}>
         {[
-          { n: "01", label: "Kernel Objects — The Building Blocks" },
-          { n: "02", label: "Threads & Processes — Execution Model" },
-          { n: "03", label: "Channel IPC — Overview" },
-          { n: "04", label: "Signal State Machine" },
-          { n: "05", label: "Channels in Code — Config & Syscalls" },
+          { n: "01", label: "Design Philosophy — Secure, Flexible, Static" },
+          { n: "02", label: "Kernel Objects — The Building Blocks" },
+          { n: "03", label: "Interrupts — Hardware & Kernel Model" },
+          { n: "04", label: "Threads & Processes — Execution Model" },
+          { n: "05", label: "Channel IPC — Signals, Code & Codegen" },
           { n: "06", label: "Wait Groups — Multiplexed Waiting" },
         ].map((item) => (
           <div key={item.n} style={{
