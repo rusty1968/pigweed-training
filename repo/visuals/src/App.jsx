@@ -15,6 +15,8 @@ import ChannelOverview from "./slides/ChannelOverview";
 import ChannelSignals from "./slides/ChannelSignals";
 import ChannelCode from "./slides/ChannelCode";
 import WaitGroups from "./slides/WaitGroups";
+import KernelPhilosophy from "./slides/KernelPhilosophy";
+import InterruptObjects from "./slides/InterruptObjects";
 
 const tracks = {
   bazel: [
@@ -29,7 +31,9 @@ const tracks = {
   ],
   kernel: [
     { id: "k-title", label: "Intro", component: KernelTitleSlide },
+    { id: "k-philosophy", label: "Philosophy", component: KernelPhilosophy },
     { id: "k-objects", label: "Objects", component: KernelObjects },
+    { id: "k-interrupts", label: "Interrupts", component: InterruptObjects },
     { id: "k-threads", label: "Threads", component: ThreadsProcesses },
     { id: "ch-overview", label: "Channels", component: ChannelOverview },
     { id: "ch-signals", label: "Signals", component: ChannelSignals },

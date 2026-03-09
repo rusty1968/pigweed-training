@@ -4,43 +4,59 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A Bazel training repository with two main areas:
-- **`visuals/`** — React presentation with interactive slides teaching Bazel concepts
-- **`exercises/`** — Hands-on Bazel exercises for trainees
+A Bazel training repository with two areas:
+- **`visuals/`** — React 18 presentation (CRA) with interactive slides teaching Bazel & Zephyr/pw_kernel concepts
+- **`prompts/`** — Reusable AI prompts for slide modifications
+
+> `exercises/` is referenced in docs but does not exist yet.
 
 ## Repository Structure
 
 ```
-visuals/          — React app (presentation)
-  src/App.jsx     — Slide system: array of {id, label, component}, arrow-key nav
-  src/slides/     — One component per slide
-  public/         — Static HTML shell
-  package.json    — React 18 via Create React App
-
-exercises/        — Bazel exercise files
+repo/
+├── visuals/              ← React app (presentation)
+│   ├── src/App.jsx       ← Slide orchestrator: track-based nav, arrow keys, nav bar
+│   ├── src/index.jsx     ← React 18 root.render
+│   ├── src/slides/       ← One component per slide (16 total)
+│   ├── public/index.html ← Minimal dark-theme shell
+│   └── package.json      ← React 18 + CRA + gh-pages
+├── prompts/              ← AI task prompts
+├── concepts.md           ← Bazel/Bzlmod conceptual diagram
+└── CLAUDE.md             ← This file
 ```
 
 ## Commands
-
-### Visuals (React presentation)
 
 All commands run from `visuals/`:
 
 - `npm install` — install dependencies
 - `npm start` — dev server on http://localhost:3000
 - `npm run build` — production build to `visuals/build/`
+- `npm run deploy` — build + deploy to GitHub Pages
 
-No test runner or linter is configured for visuals.
+No test runner or linter is configured.
 
-## Visuals Architecture
+## Architecture
 
-- **Entry:** `visuals/src/index.jsx` renders `visuals/src/App.jsx`
-- **Slide system:** `App.jsx` has a `slides` array. Navigation via state index + arrow keys + bottom nav bar.
-- **Slides in `visuals/src/slides/`** — each is a standalone React component (TitleSlide, BazelDiagram, BazelCards, RustBazel)
-- **Styling:** all inline via `style` props, no CSS framework or router
+### Navigation
+
+`App.jsx` uses **track-based** navigation (not a flat slide array):
+- Two tracks: `bazel` (8 slides) and `kernel` (7 slides)
+- **MasterSlide** is the hub (shown when no track is selected)
+- State: `track` (null | "bazel" | "kernel") + `current` (0-indexed)
+- Arrow keys / nav bar / HOME to navigate; Escape returns to master
+
+### Slide Conventions
+
+Every slide is a **standalone functional component with no props** (except MasterSlide).
+
+- All styling is **inline** via `style` props — no CSS files, no className
+- State lives inside the slide (`useState`) — no prop drilling / context / Redux
+- `minHeight: "100vh"`, `background: "#080C14"`, `fontFamily: "'Courier New', monospace"`
+- Color palette: bg `#080C14`, text `#E2E8F0`, dim `#64748B`, bazel `#00FFB2`, kernel `#A78BFA`, rust `#CE422B`, info `#38BDF8`
 
 ### Adding a slide
 
-1. Create `visuals/src/slides/YourSlide.jsx` exporting a default React component
-2. Import it in `visuals/src/App.jsx`
-3. Add an entry to the `slides` array
+1. Create `visuals/src/slides/YourSlide.jsx` — export default functional component
+2. Import in `visuals/src/App.jsx`
+3. Add `{ id, label, component }` to the appropriate track in `tracks`

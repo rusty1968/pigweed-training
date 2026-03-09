@@ -5,19 +5,6 @@ const DIM = "#1A2235";
 export default function MasterSlide({ onSelectTrack }) {
   const tracks = [
     {
-      id: "bazel",
-      color: BAZEL,
-      title: "BAZEL",
-      subtitle: "BUILD SYSTEM FUNDAMENTALS",
-      items: [
-        "Why Bazel for pw_kernel?",
-        "Build Anatomy & Learning Roadmap",
-        "Core Properties & Flashcards",
-        "Rust + Bazel & Embedded Bzlmod",
-      ],
-      count: 7,
-    },
-    {
       id: "kernel",
       color: PURPLE,
       title: "pw_kernel",
@@ -29,6 +16,20 @@ export default function MasterSlide({ onSelectTrack }) {
         "Wait Groups — Multiplexed Waiting",
       ],
       count: 6,
+    },
+    {
+      id: "bazel",
+      color: BAZEL,
+      title: "BAZEL",
+      subtitle: "BUILD SYSTEM FUNDAMENTALS",
+      items: [
+        "Why Bazel for pw_kernel?",
+        "Build Anatomy & Learning Roadmap",
+        "Core Properties & Flashcards",
+        "Rust + Bazel & Embedded Bzlmod",
+      ],
+      count: 7,
+      wip: true,
     },
   ];
 
@@ -80,6 +81,18 @@ export default function MasterSlide({ onSelectTrack }) {
               position: "absolute", top: 0, left: 0, width: "100%", height: 2,
               background: `linear-gradient(90deg, transparent, ${track.color}, transparent)`,
             }} />
+
+            {track.wip && (
+              <div style={{
+                position: "absolute", top: 12, right: -28,
+                background: "#FBBF24", color: "#080C14",
+                fontSize: 8, fontWeight: 900, letterSpacing: 2,
+                padding: "3px 32px",
+                transform: "rotate(35deg)",
+              }}>
+                🚧 UNDER CONSTRUCTION
+              </div>
+            )}
 
             <div style={{
               fontSize: 28, fontWeight: 900, letterSpacing: 6,
