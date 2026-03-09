@@ -11,12 +11,14 @@ import EmbeddedBzlmod from "./slides/EmbeddedBzlmod";
 import KernelTitleSlide from "./slides/KernelTitleSlide";
 import KernelObjects from "./slides/KernelObjects";
 import ThreadsProcesses from "./slides/ThreadsProcesses";
-import ChannelOverview from "./slides/ChannelOverview";
-import ChannelSignals from "./slides/ChannelSignals";
-import ChannelCode from "./slides/ChannelCode";
+import ChannelObjects from "./slides/ChannelObjects";
 import WaitGroups from "./slides/WaitGroups";
 import KernelPhilosophy from "./slides/KernelPhilosophy";
 import InterruptObjects from "./slides/InterruptObjects";
+import DriverTitleSlide from "./slides/DriverTitleSlide";
+import DriverArchitecture from "./slides/DriverArchitecture";
+import DriverImplementation from "./slides/DriverImplementation";
+import DriverBuildTest from "./slides/DriverBuildTest";
 
 const tracks = {
   bazel: [
@@ -35,10 +37,14 @@ const tracks = {
     { id: "k-objects", label: "Objects", component: KernelObjects },
     { id: "k-interrupts", label: "Interrupts", component: InterruptObjects },
     { id: "k-threads", label: "Threads", component: ThreadsProcesses },
-    { id: "ch-overview", label: "Channels", component: ChannelOverview },
-    { id: "ch-signals", label: "Signals", component: ChannelSignals },
-    { id: "ch-code", label: "Ch. Code", component: ChannelCode },
+    { id: "channels", label: "Channels", component: ChannelObjects },
     { id: "wait-groups", label: "Wait Groups", component: WaitGroups },
+  ],
+  driver: [
+    { id: "d-title", label: "Intro", component: DriverTitleSlide },
+    { id: "d-arch", label: "Service Crate Architecture", component: DriverArchitecture },
+    { id: "d-impl", label: "Implementation", component: DriverImplementation },
+    { id: "d-build", label: "Build & Test", component: DriverBuildTest },
   ],
 };
 

@@ -13,37 +13,44 @@ const steps = [
   {
     label: "IDLE",
     desc: "No transaction in progress",
-    initiator: { WRITABLE: true, READABLE: false },
-    handler: { READABLE: false, WRITABLE: false },
+    initiator: { WRITABLE: true, READABLE: false, ERROR: false, USER: false },
+    handler: { READABLE: false, WRITABLE: false, ERROR: false, USER: false },
     note: "Initiator is WRITABLE — ready to start a transaction",
   },
   {
     label: "TRANSACT",
     desc: "Initiator calls channel_transact()",
-    initiator: { WRITABLE: false, READABLE: false },
-    handler: { READABLE: true, WRITABLE: true },
-    note: "Handler becomes READABLE + WRITABLE — data is available",
+    initiator: { WRITABLE: false, READABLE: false, ERROR: false, USER: false },
+    handler: { READABLE: true, WRITABLE: true, ERROR: false, USER: false },
+    note: "Handler becomes READABLE + WRITABLE — data is available to read",
   },
   {
     label: "READ",
     desc: "Handler calls channel_read()",
-    initiator: { WRITABLE: false, READABLE: false },
-    handler: { READABLE: true, WRITABLE: true },
-    note: "Handler reads directly from initiator's send buffer — no copy into kernel",
+    initiator: { WRITABLE: false, READABLE: false, ERROR: false, USER: false },
+    handler: { READABLE: true, WRITABLE: true, ERROR: false, USER: false },
+    note: "Non-blocking read directly from initiator's send buffer — can call multiple times with offset",
   },
   {
     label: "RESPOND",
     desc: "Handler calls channel_respond()",
-    initiator: { WRITABLE: true, READABLE: true },
-    handler: { READABLE: false, WRITABLE: false },
-    note: "Response copied to initiator's recv buffer. Initiator wakes up with READABLE.",
+    initiator: { WRITABLE: true, READABLE: true, ERROR: false, USER: false },
+    handler: { READABLE: false, WRITABLE: false, ERROR: false, USER: false },
+    note: "Response copied to initiator's recv_buffer. Initiator wakes with READABLE. Handler signals cleared.",
   },
   {
     label: "COMPLETE",
     desc: "Initiator reads response, cycle done",
-    initiator: { WRITABLE: true, READABLE: false },
-    handler: { READABLE: false, WRITABLE: false },
+    initiator: { WRITABLE: true, READABLE: false, ERROR: false, USER: false },
+    handler: { READABLE: false, WRITABLE: false, ERROR: false, USER: false },
     note: "Back to IDLE — channel ready for the next transaction",
+  },
+  {
+    label: "USER SIG",
+    desc: "Either peer calls object_raise_peer_user_signal()",
+    initiator: { WRITABLE: true, READABLE: false, ERROR: false, USER: true },
+    handler: { READABLE: false, WRITABLE: false, ERROR: false, USER: true },
+    note: "Out-of-band notification — USER signal set on the peer. Cleared when that object is waited on.",
   },
 ];
 
@@ -153,6 +160,8 @@ export default function ChannelSignals() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <SignalDot on={current.initiator.WRITABLE} color={BAZEL} label="WRITABLE" />
                 <SignalDot on={current.initiator.READABLE} color={BLUE} label="READABLE" />
+                <SignalDot on={current.initiator.ERROR} color={RUST} label="ERROR" />
+                <SignalDot on={current.initiator.USER} color={PURPLE} label="USER" />
               </div>
             </div>
 
@@ -177,6 +186,8 @@ export default function ChannelSignals() {
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 <SignalDot on={current.handler.READABLE} color={BAZEL} label="READABLE" />
                 <SignalDot on={current.handler.WRITABLE} color={ORANGE} label="WRITABLE" />
+                <SignalDot on={current.handler.ERROR} color={RUST} label="ERROR" />
+                <SignalDot on={current.handler.USER} color={PURPLE} label="USER" />
               </div>
             </div>
           </div>

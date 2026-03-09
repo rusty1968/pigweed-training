@@ -26,8 +26,8 @@ export default function ChannelOverview() {
           marginBottom: 8,
         }}>CHANNELS</div>
         <div style={{ fontSize: 11, letterSpacing: 3, color: "#4A5568", maxWidth: 520, lineHeight: 1.7 }}>
-          Zero-allocation, single-transaction IPC between processes.
-          <br />One initiator sends, one handler responds — no buffering in the kernel.
+          <span style={{ color: PURPLE }}>Unidirectional, asymmetric</span> IPC between processes.
+          <br />One initiator sends, one handler responds — <span style={{ color: BAZEL }}>zero-copy</span>, no kernel buffers.
         </div>
       </div>
 
@@ -135,22 +135,27 @@ export default function ChannelOverview() {
         </div>
 
         {/* Design principles */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           {[
             {
               label: "ZERO ALLOCATION",
               color: BAZEL,
-              desc: "All channels statically allocated at build time. No malloc, no heap, no surprises.",
+              desc: "All channels statically allocated at build time via Jinja codegen. No malloc, no heap.",
             },
             {
               label: "SINGLE IN-FLIGHT",
               color: PURPLE,
-              desc: "One transaction per channel at a time. Simplifies state, reduces memory footprint.",
+              desc: "One transaction per channel. Handler must respond before initiator can start another.",
             },
             {
-              label: "DIRECT COPY",
+              label: "ZERO-COPY",
               color: BLUE,
-              desc: "Data copies directly between process buffers. No intermediate kernel storage.",
+              desc: "Data copies directly between process buffers during syscalls. No intermediate kernel storage.",
+            },
+            {
+              label: "SYNC + ASYNC",
+              color: ORANGE,
+              desc: "channel_transact() blocks; channel_async_transact() returns immediately. Cancel with channel_async_cancel().",
             },
           ].map((p) => (
             <div key={p.label} style={{
@@ -169,6 +174,24 @@ export default function ChannelOverview() {
               <div style={{ fontSize: 10, color: TEXT, lineHeight: 1.7 }}>{p.desc}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 16, width: "100%", maxWidth: 780 }}>
+        <div style={{
+          border: `1px solid ${RUST}30`, borderRadius: 4,
+          padding: "14px 20px", background: `${RUST}08`,
+          display: "flex", gap: 16, alignItems: "flex-start",
+        }}>
+          <div style={{
+            fontSize: 10, letterSpacing: 3, color: RUST, fontWeight: 700,
+            minWidth: 110, paddingTop: 2,
+          }}>OUT-OF-BAND</div>
+          <div style={{ fontSize: 11, color: TEXT, lineHeight: 1.7 }}>
+            <span style={{ color: RUST }}>object_raise_peer_user_signal()</span> lets either peer
+            notify the other outside the transact/respond flow — sets the <span style={{ color: ORANGE }}>USER</span> signal
+            on the paired object.
+          </div>
         </div>
       </div>
 

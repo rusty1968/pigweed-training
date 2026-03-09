@@ -1,0 +1,249 @@
+# Channel Objects in pw_kernel
+
+## Overview
+
+A channel is a **unidirectional, asymmetric** IPC primitive connecting two peers:
+an **initiator** and a **handler**. The initiator sends a buffer of data and
+blocks (or polls) for the handler's response. Channels support at most **one
+pending transaction** at a time and are designed for **zero-copy** operation —
+all data copies happen during system calls, with no intermediate kernel buffers.
+
+Both a synchronous and asynchronous API are offered to the initiator, while the
+handler-side API is strictly non-blocking.
+
+## End-to-End Transaction Flow
+
+```
+Initiator                          Kernel                             Handler
+─────────                          ──────                             ───────
+channel_transact(send, recv)
+  → store Transaction{send,recv}
+  → clear own READABLE|WRITEABLE|ERROR
+  → signal handler READABLE ──────────────────────────────────────→ object_wait() wakes
+  → block on own READABLE|ERROR
+                                                                    channel_read(offset, buf)
+                                                                      ← kernel copies from
+                                                                        initiator's send_buffer
+                                                                    (may call channel_read
+                                                                     multiple times)
+
+                                                                    channel_respond(response)
+  ← READABLE signaled on initiator ←── kernel copies response ────   → clear handler READABLE|WRITEABLE
+                                        into initiator's recv_buffer
+  wake from wait
+  → set own WRITEABLE
+  → take transaction, return recv_bytes
+```
+
+### Async variant
+
+`channel_async_transact()` initiates the transaction but returns immediately
+instead of blocking. The initiator can later wait on `Signals::READABLE` (or
+`Signals::ERROR`) via `object_wait()`, or cancel with `channel_async_cancel()`.
+Send and receive buffers must remain valid for the entire transaction lifetime.
+
+## Build-Time Configuration (Code Generation)
+
+Channel objects are **statically allocated** at build time via Jinja templates
+(`tooling/system_generator/templates/objects/`):
+
+- **`channel_handler.rs.jinja`** — allocates a `ChannelHandlerObject` via
+  `static_foreign_rc!` and produces both a concrete `ForeignRc` (retained for
+  linking to initiators) and an upcasted `dyn KernelObject` for the object table:
+
+  ```rust
+  let handler = unsafe {
+      static_foreign_rc!(AtomicUsize, ChannelHandlerObject<K>,
+          ChannelHandlerObject::new(kernel))
+  };
+  (upcast_foreign_rc!(handler.clone() => dyn KernelObject<K>), handler)
+  ```
+
+- **`channel_initiator.rs.jinja`** — allocates a `ChannelInitiatorObject`,
+  linking it to its handler's concrete `ForeignRc` by referencing the handler
+  object created in the handler's application:
+
+  ```rust
+  let initiator = unsafe {
+      static_foreign_rc!(AtomicUsize, ChannelInitiatorObject<K>,
+          ChannelInitiatorObject::new(
+              object_<handler_app>_<handler_object>_handler))
+  };
+  upcast_foreign_rc!(initiator => dyn KernelObject<K>)
+  ```
+
+  The `object_<handler_app>_<handler_object>_handler` name is a generated
+  variable referencing the concrete handler `ForeignRc`, enabling the initiator
+  in one process to hold a direct reference to the handler object in another.
+
+## Kernel Implementation
+
+### ChannelHandlerObject (`kernel/object/channel.rs`)
+
+```rust
+pub struct ChannelHandlerObject<K: Kernel> {
+    base: ObjectBase<K>,
+    active_transaction: Mutex<K, Option<Transaction<K>>>,
+}
+
+struct Transaction<K: Kernel> {
+    send_buffer: SyscallBuffer,        // points into initiator's memory
+    recv_buffer: SyscallBuffer,        // points into initiator's memory
+    initiator: ForeignRc<..., ChannelInitiatorObject<K>>,
+}
+```
+
+**`channel_read()`** — copies from the initiator's `send_buffer` into the
+handler's read buffer. Non-blocking; can be called multiple times with different
+offsets. Returns `FailedPrecondition` if no transaction is pending.
+
+**`channel_respond()`** — copies the handler's response into the initiator's
+`recv_buffer`, truncates it to the response size, clears `READABLE | WRITEABLE`
+on the handler, and signals `READABLE` on the initiator.
+
+### ChannelInitiatorObject (`kernel/object/channel.rs`)
+
+```rust
+pub struct ChannelInitiatorObject<K: Kernel> {
+    base: ObjectBase<K>,
+    handler: ForeignRc<..., ChannelHandlerObject<K>>,
+}
+```
+
+**`channel_transact()`** — the core synchronous operation:
+
+1. Lock handler's `active_transaction`; fail with `Unavailable` if already occupied.
+2. Store a `Transaction` with send/recv `SyscallBuffer`s and a back-reference to self.
+3. Clear own `READABLE | WRITEABLE | ERROR`.
+4. Signal handler's `READABLE`.
+5. Block on own `READABLE | ERROR` until deadline.
+6. On wake: set own `WRITEABLE`, take the transaction from the handler, return `recv_buffer.size()`.
+
+## Signal Semantics
+
+### Initiator Signals
+
+| Signal | Meaning |
+|--------|---------|
+| `WRITEABLE` | No pending transaction — a new one can be started. |
+| `READABLE` | Handler has responded to the pending transaction. |
+| `ERROR` | Pending transaction has an error. Cleared when initiator is waited on. |
+| `USER` | Handler called `object_raise_peer_user_signal()`. Cleared when waited on. |
+
+### Handler Signals
+
+| Signal | Meaning |
+|--------|---------|
+| `READABLE` | A transaction is pending (data available to read). Cleared by `channel_respond()`. |
+| `WRITEABLE` | A transaction is pending. Cleared by `channel_respond()`. |
+| `ERROR` | Transaction error (no error states currently defined; reserved for future peer-close). |
+| `USER` | Initiator called `object_raise_peer_user_signal()`. Cleared when waited on. |
+
+### Out-of-Band Signaling
+
+Since channels are unidirectional, `object_raise_peer_user_signal()` provides
+a way for either peer to notify the other outside of the normal
+transact/respond flow. This sets the `USER` signal on the peer's object.
+
+## Userspace Usage Pattern
+
+### Initiator side (from `tests/ipc/user/initiator.rs`)
+
+```rust
+let mut send_buf = [0u8; SEND_BUF_LEN];
+let mut recv_buf = [0u8; RECV_BUF_LEN];
+
+// Encode payload into send_buf...
+c.encode_utf8(&mut send_buf);
+
+// Synchronous transact: blocks until handler responds or deadline expires.
+let len: usize = syscall::channel_transact(
+    handle::IPC,
+    &send_buf,
+    &mut recv_buf,
+    Instant::MAX,    // no timeout
+)?;
+
+// `len` is the number of response bytes written into recv_buf.
+// Decode and use recv_buf[..len]...
+```
+
+### Handler side (from `tests/ipc/user/handler.rs`)
+
+```rust
+loop {
+    // 1. Wait for a transaction to arrive.
+    let wait_return = syscall::object_wait(
+        handle::IPC,
+        Signals::READABLE,
+        Instant::MAX,
+    ).map_err(|_| Error::Internal)?;
+
+    // 2. Read the request payload (non-blocking, zero-copy from initiator memory).
+    let mut buffer = [0u8; size_of::<char>()];
+    let len = syscall::channel_read(handle::IPC, 0, &mut buffer)?;
+
+    // 3. Process the request...
+    let upper_c = c.to_ascii_uppercase();
+
+    // 4. Send the response — kernel copies into initiator's recv_buffer,
+    //    clears handler signals, and wakes the initiator.
+    let mut response_buffer = [0u8; RESP_LEN];
+    // ...fill response_buffer...
+    syscall::channel_respond(handle::IPC, &response_buffer)?;
+}
+```
+
+### Key points in the usage pattern
+
+1. **`channel_transact()`** is synchronous — it blocks the initiator thread until
+   the handler calls `channel_respond()` or the deadline expires.
+2. **`channel_read()`** is non-blocking and can be called multiple times with an
+   `offset` parameter, allowing the handler to read the request payload in chunks.
+3. **`channel_respond()`** completes the transaction atomically: copies response
+   data, clears handler signals, and wakes the initiator.
+4. The handler must respond before the initiator can start a new transaction
+   (max one pending at a time).
+5. Send and receive buffers live in the **initiator's process memory** — the kernel
+   copies directly between address spaces during syscalls.
+
+## Syscalls
+
+### Generic (both peers)
+
+| Syscall | Purpose |
+|---------|---------|
+| `object_wait(handle, signal_mask, deadline)` | Block until requested signals are active |
+| `object_raise_peer_user_signal(handle)` | Raise `USER` signal on the paired peer |
+
+### Initiator Syscalls
+
+| Syscall | Purpose |
+|---------|---------|
+| `channel_transact(handle, send, recv, deadline)` | Synchronous transaction — blocks until response or deadline |
+| `channel_async_transact(handle, send, recv)` | Start async transaction — returns immediately |
+| `channel_async_cancel(handle)` | Cancel a pending async transaction |
+
+### Handler Syscalls
+
+| Syscall | Purpose |
+|---------|---------|
+| `channel_read(handle, offset, buffer)` | Non-blocking read from initiator's send buffer |
+| `channel_respond(handle, buffer)` | Complete transaction, copy response to initiator |
+
+## Open Questions
+
+- **Error propagation**: There is no built-in mechanism for the handler to signal
+  an error to the initiator. Error semantics are left to the higher-level protocol
+  used over the channel.
+- **Peer close**: `Signals::ERROR` on the handler is reserved for a future
+  peer-close notification but is not currently defined.
+- **Dynamic memory**: The current implementation assumes static memory mapping. A
+  TODO in the source notes that dynamic memory mapping APIs would require either
+  deferred validity checks, a region locking mechanism, or restricting IPC buffers
+  to non-dynamically-mappable memory.
+- **Async cancel race**: What happens if `channel_async_cancel()` races with
+  `channel_respond()`?
+- **Signal rationalization**: A source TODO notes the need to rationalize signal
+  behavior with `syscall_defs.rs` (specifically around `WRITEABLE` being set
+  after wait in `channel_transact`).

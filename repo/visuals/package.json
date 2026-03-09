@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Bazel build system training presentation",
   "private": true,
-  "homepage": "https://clockdomain.github.io/training",
+  "homepage": "https://rusty1968.github.io/pigweed-training",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

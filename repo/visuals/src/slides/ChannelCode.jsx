@@ -52,6 +52,38 @@ const tabs = [
     ],
   },
   {
+    id: "codegen",
+    label: "CODEGEN",
+    color: RUST,
+    desc: "Jinja templates generate static allocation and cross-process linking",
+    blocks: [
+      {
+        title: "channel_handler.rs.jinja — HANDLER ALLOCATION",
+        code: `// Generated: allocate ChannelHandlerObject via static_foreign_rc!
+let handler = unsafe {
+    static_foreign_rc!(AtomicUsize, ChannelHandlerObject<K>,
+        ChannelHandlerObject::new(kernel))
+};
+// Upcast to dyn KernelObject for the object table,
+// retain concrete ForeignRc for initiator linking
+(upcast_foreign_rc!(handler.clone() => dyn KernelObject<K>),
+ handler)`,
+      },
+      {
+        title: "channel_initiator.rs.jinja — CROSS-PROCESS LINK",
+        code: `// Generated: link initiator to its handler's ForeignRc
+// object_<handler_app>_<handler_object>_handler is a
+// generated variable referencing the concrete handler
+let initiator = unsafe {
+    static_foreign_rc!(AtomicUsize, ChannelInitiatorObject<K>,
+        ChannelInitiatorObject::new(
+            object_handler_IPC_handler))  // cross-app ref
+};
+upcast_foreign_rc!(initiator => dyn KernelObject<K>)`,
+      },
+    ],
+  },
+  {
     id: "initiator",
     label: "INITIATOR",
     color: BLUE,
@@ -123,36 +155,38 @@ let len = syscall::channel_async_transact_complete(
     ],
   },
   {
-    id: "waitgroup",
-    label: "WAIT GROUP",
+    id: "structs",
+    label: "KERNEL",
     color: PURPLE,
-    desc: "Wait on multiple channels simultaneously (like epoll)",
+    desc: "Kernel-side data structures — how the channel is represented internally",
     blocks: [
       {
-        title: "MULTI-CHANNEL COORDINATION",
-        code: `// Add channels to the wait group
-syscall::wait_group_add(
-    handle::WAIT_GROUP,
-    handle::IPC_1,
-    Signals::WRITABLE,  // wake when ready
-    1,                   // user_data identifier
-)?;
+        title: "ChannelHandlerObject",
+        code: `pub struct ChannelHandlerObject<K: Kernel> {
+    base: ObjectBase<K>,
+    active_transaction: Mutex<K, Option<Transaction<K>>>,
+}
 
-syscall::wait_group_add(
-    handle::WAIT_GROUP,
-    handle::IPC_2,
-    Signals::WRITABLE,
-    2,
-)?;
+struct Transaction<K: Kernel> {
+    send_buffer: SyscallBuffer,   // points into initiator's memory
+    recv_buffer: SyscallBuffer,   // points into initiator's memory
+    initiator: ForeignRc<..., ChannelInitiatorObject<K>>,
+}`,
+      },
+      {
+        title: "ChannelInitiatorObject",
+        code: `pub struct ChannelInitiatorObject<K: Kernel> {
+    base: ObjectBase<K>,
+    handler: ForeignRc<..., ChannelHandlerObject<K>>,
+}
 
-// Wait for any channel to become ready
-let result = syscall::object_wait(
-    handle::WAIT_GROUP,
-    Signals::READABLE,
-    Instant::MAX,
-)?;
-
-// result.user_data tells us which channel fired`,
+// channel_transact() flow:
+// 1. Lock handler's active_transaction (fail if occupied)
+// 2. Store Transaction with send/recv SyscallBuffers
+// 3. Clear own READABLE | WRITABLE | ERROR
+// 4. Signal handler's READABLE
+// 5. Block on own READABLE | ERROR until deadline
+// 6. On wake: set WRITABLE, take transaction, return size`,
       },
     ],
   },

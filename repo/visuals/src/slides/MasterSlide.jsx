@@ -1,5 +1,6 @@
 const BAZEL = "#00FFB2";
 const PURPLE = "#A78BFA";
+const ORANGE = "#FF6B35";
 const DIM = "#1A2235";
 
 export default function MasterSlide({ onSelectTrack }) {
@@ -10,12 +11,12 @@ export default function MasterSlide({ onSelectTrack }) {
       title: "pw_kernel",
       subtitle: "KERNEL INTERNALS",
       items: [
-        "Kernel Objects — Building Blocks",
-        "Threads & Processes — Execution Model",
-        "Channel IPC & Signal State Machine",
+        "Design Philosophy — Secure, Flexible, Static",
+        "Kernel Objects & Interrupts",
+        "Threads, Processes & Channel IPC",
         "Wait Groups — Multiplexed Waiting",
       ],
-      count: 6,
+      count: 7,
     },
     {
       id: "bazel",
@@ -30,6 +31,19 @@ export default function MasterSlide({ onSelectTrack }) {
       ],
       count: 7,
       wip: true,
+    },
+    {
+      id: "driver",
+      color: ORANGE,
+      title: "USERSPACE DRIVERS",
+      subtitle: "BUILDING A PERIPHERAL SERVICE",
+      items: [
+        "Five-Crate Architecture & Wire Protocol",
+        "Backend, Server Loop & IPC Client",
+        "system.json5 & Bazel Build Graph",
+        "Integration Tests & Exercises",
+      ],
+      count: 4,
     },
   ];
 
